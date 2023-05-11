@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_loggy/flutter_loggy.dart';
 import 'package:loggy/loggy.dart';
+import 'package:opus_dart/opus_dart.dart';
+import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
 import 'package:provider/provider.dart';
 
 import '/providers/mumble_provider.dart';
 import '/views/mumble_ui/mumble_ui.dart';
 
-void main() {
+void main() async {
   Loggy.initLoggy(
       filters: [
         // BlacklistFilter([NetworkLoggy])
@@ -19,6 +21,7 @@ void main() {
 
   // runApp(const MyApp());
 
+  initOpus(await opus_flutter.load());
   runApp(MultiProvider(
     providers: [
       ChangeNotifierProvider<MumbleProvider>(create: (_) => MumbleProvider())

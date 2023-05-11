@@ -1,18 +1,26 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:dumble/dumble.dart';
+import 'package:dumble/dumble.dart' hide Permission;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 import 'package:loggy/loggy.dart';
+import 'package:opus_dart/opus_dart.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:pttoc_test/providers/connection_options.dart';
 import 'package:pttoc_test/providers/lib/mumble_log.dart';
 
+import 'flutter_sound_provider.dart';
+
 class MumbleProvider extends ChangeNotifier with NetworkLoggy {
   MumbleClient? client;
+  late StreamSubscription<Uint8List> audioStream;
+
+  late FlutterSoundProvider flutterSound = FlutterSoundProvider();
 
   MumbleLog mumbleLog = MumbleLog();
-  final pttChannel = MethodChannel('com.rgnets.pttoc/ptt');
+  final pttChannel = const MethodChannel('com.rgnets.pttoc/ptt');
   bool transmitting = false;
 
   Future<void> connect(
@@ -27,6 +35,10 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
         name: name,
         password: password,
         pingTimeout: const Duration(seconds: 20));
+
+    if (!flutterSound.isInitialized) {
+      await flutterSound.initialize();
+    }
 
     return MumbleClient.connect(
         options:
@@ -109,6 +121,76 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
     mumbleLog.internal("Starting transmit");
     transmitting = true;
     notifyListeners();
+    if (await Permission.microphone.request().isGranted && client != null) {
+      // Permission is granted, continue with audio recording and transmission
+
+      // audioStream = await MicrophoneStream().audioStream;
+      // client!.audio.sendAudio(codec: codec) .microphoneStream(audioStream)
+
+      // Stream<Uint8List>? micStream = await MicStream.microphone(
+      //   sampleRate: 48000,
+      //   channelConfig: ChannelConfig.CHANNEL_IN_MONO,
+      //   audioFormat: AudioFormat.ENCODING_PCM_8BIT,
+      // );
+      //
+
+      HapticFeedback.vibrate();
+      const int inputSampleRate = 16000;
+      const int frameTimeMs = 40; // use frames of 40ms
+      const FrameTime frameTime = FrameTime.ms40;
+      const int outputSampleRate = 48000;
+      const int channels = 1;
+
+      StreamOpusEncoder<int> encoder = StreamOpusEncoder.bytes(
+          frameTime: frameTime,
+          floatInput: false,
+          sampleRate: inputSampleRate,
+          channels: channels,
+          application: Application.voip);
+
+      AudioFrameSink audioOutput =
+          client!.audio.sendAudio(codec: AudioCodec.opus);
+      //
+      // micStream!
+      //     .asyncMap((List<int> bytes) async {
+      //       return bytes;
+      //     })
+      //     .transform(encoder)
+      //     .map((Uint8List audioBytes) => AudioFrame.outgoing(frame: audioBytes))
+      //     .pipe(audioOutput);
+
+      var recordingDataController = StreamController<Food>();
+      Stream<Uint8List>? audioStream = recordingDataController.stream
+          .map((event) => (event as FoodData).data!);
+      // var _mRecordingDataSubscription =
+      //     recordingDataController.stream.listen((buffer) {
+      //   if (buffer is FoodData) {
+      //     // sink.add(buffer.data!);
+      //     print(buffer.data!);
+      //   }
+      // });
+
+      audioStream
+          .asyncMap((List<int> bytes) async {
+            return bytes;
+          })
+          .transform(encoder)
+          .map((Uint8List audioBytes) => AudioFrame.outgoing(frame: audioBytes))
+          .pipe(audioOutput);
+
+      flutterSound.startRecorder(
+        toStream: recordingDataController.sink,
+        codec: Codec.pcm16,
+        numChannels: channels,
+        sampleRate: inputSampleRate,
+      );
+
+      notifyListeners();
+    } else {
+      // Permission is not granted, show an error message or request again
+      transmitting = false;
+      notifyListeners();
+    }
     // // await new Future.delayed(
     // //     const Duration(seconds: 5)); // Wait a few seconds before we start talking
     // StreamOpusEncoder<int> encoder = StreamOpusEncoder.bytes(
@@ -136,6 +218,8 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
 
   void stopTransmit() {
     mumbleLog.internal("Stopping transmit");
+    flutterSound.stopRecorder();
+    HapticFeedback.vibrate();
     transmitting = false;
     notifyListeners();
   }

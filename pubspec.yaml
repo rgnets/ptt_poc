@@ -53,6 +53,13 @@ dependencies:
   loggy: ^2.0.3
   flutter_loggy: ^2.0.2
   receive_intent: ^0.2.3
+  permission_handler: ^10.2.0
+  mic_stream: ^0.6.5
+  opus_dart: ^3.0.0
+  audio_session: ^0.1.13
+
+dependency_overrides:
+  ffi: "^2.0.1" # Playing with fire here, but need to do so to resolve a conflict.
 
 dev_dependencies:
   flutter_test:
