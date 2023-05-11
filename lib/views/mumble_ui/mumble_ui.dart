@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:loggy/loggy.dart';
 import 'package:provider/provider.dart';
 import 'package:pttoc_test/views/mumble_ui/mumble_ui_view_model.dart';
 import 'package:rg_widgets/gui_utils.dart';
 
 import '../../providers/mumble_provider.dart';
 
-class MumbleUiView extends StatelessWidget {
+class MumbleUiView extends StatelessWidget with UiLoggy {
   const MumbleUiView({Key? key}) : super(key: key);
 
   @override
@@ -17,6 +18,10 @@ class MumbleUiView extends StatelessWidget {
         builder: (context, child) {
           return Consumer<MumbleUiViewModel>(
               builder: (context, mumbleUiVM, child) {
+            loggy.debug("Building MumbleUiView");
+            if (mumbleUiVM.connected) {
+              mumbleUiVM.transmitButtonFocus.requestFocus();
+            }
             return Scaffold(
               appBar: AppBar(
                 // Here we take the value from the MyHomePage object that was created by
@@ -25,35 +30,55 @@ class MumbleUiView extends StatelessWidget {
               ),
               body: SingleChildScrollView(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    TextField(
-                      controller: mumbleUiVM.hostTextController,
-                      decoration: const InputDecoration(
-                          icon: Icon(Icons.storage), label: Text("Host")),
-                    ),
-                    TextField(
-                        controller: mumbleUiVM.portTextController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 5,
-                        inputFormatters: <TextInputFormatter>[
-                          FilteringTextInputFormatter.digitsOnly
-                        ],
-                        decoration: const InputDecoration(
-                            icon: Icon(Icons.lan), label: Text("Port"))),
-                    TextField(
-                      controller: mumbleUiVM.nameTextController,
-                      decoration: const InputDecoration(
-                          icon: Icon(Icons.person), label: Text("Name")),
-                    ),
-                    TextField(
-                      controller: mumbleUiVM.passwordTextController,
-                      decoration: const InputDecoration(
-                          icon: Icon(Icons.key), label: Text("Password")),
-                      obscureText: true,
-                      obscuringCharacter: '*',
-                    ),
-
+                    if (!mumbleUiVM.connected)
+                      Card(
+                        child: Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                TextField(
+                                    controller: mumbleUiVM.hostTextController,
+                                    decoration: const InputDecoration(
+                                        icon: Icon(Icons.storage),
+                                        label: Text("Host")),
+                                    onEditingComplete: () =>
+                                        FocusScope.of(context).nextFocus()),
+                                TextField(
+                                    controller: mumbleUiVM.portTextController,
+                                    keyboardType: TextInputType.number,
+                                    maxLength: 5,
+                                    inputFormatters: <TextInputFormatter>[
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
+                                    decoration: const InputDecoration(
+                                        icon: Icon(Icons.lan),
+                                        label: Text("Port")),
+                                    onEditingComplete: () =>
+                                        FocusScope.of(context).nextFocus()),
+                                TextField(
+                                    controller: mumbleUiVM.nameTextController,
+                                    decoration: const InputDecoration(
+                                        icon: Icon(Icons.person),
+                                        label: Text("Name")),
+                                    onEditingComplete: () =>
+                                        FocusScope.of(context).nextFocus()),
+                                TextField(
+                                    controller:
+                                        mumbleUiVM.passwordTextController,
+                                    decoration: const InputDecoration(
+                                        icon: Icon(Icons.key),
+                                        label: Text("Password")),
+                                    obscureText: true,
+                                    obscuringCharacter: '*',
+                                    onEditingComplete: () =>
+                                        FocusScope.of(context).nextFocus()),
+                              ],
+                            )),
+                      ),
                     if (!mumbleUiVM.connected)
                       TextButton(
                           onPressed: () {
@@ -70,7 +95,6 @@ class MumbleUiView extends StatelessWidget {
                             });
                           },
                           child: Text("Connect")),
-
                     if (mumbleUiVM.connected)
                       TextButton(
                           onPressed: () {
@@ -86,11 +110,31 @@ class MumbleUiView extends StatelessWidget {
                               print(stackTrace);
                             });
                           },
-                          child: Text("Disconnect"))
-                    // Text(
-                    //   '$_counter',
-                    //   style: Theme.of(context).textTheme.headlineMedium,
-                    // ),
+                          child: Text("Disconnect")),
+                    if (mumbleUiVM.connected)
+                      // Focus(
+                      //     autofocus: true,
+                      //     focusNode: mumbleUiVM.transmitButtonFocus,
+                      //     canRequestFocus: true,
+                      //
+                      //     child:
+                      InkWell(
+                        onTapDown: (_) {
+                          print("Start!");
+                          mumbleUiVM.startTransmit();
+                        },
+                        onTapUp: (_) {
+                          mumbleUiVM.stopTransmit();
+                        },
+                        child: Icon(
+                          Icons.mic,
+                          size: 200,
+                          color: mumbleUiVM.transmitting
+                              ? Colors.green
+                              : Colors.red,
+                        ),
+                        // )
+                      ),
                   ],
                 ),
               ),
@@ -98,7 +142,7 @@ class MumbleUiView extends StatelessWidget {
                 onPressed: () {},
                 tooltip: 'Increment',
                 child: const Icon(Icons.add),
-              ), // This trailing comma makes auto-formatting nicer for build methods.
+              ),
             );
           });
         });

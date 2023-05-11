@@ -30,5 +30,15 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+       <meta-data
+           android:name="com.samsung.android.knox.intent.action.HARD_KEY_PRESS"
+           android:value="true" />
+       <receiver android:name=".IntentReceiver" android:exported="true">
+           <intent-filter>
+               <action android:name="com.samsung.android.knox.intent.action.HARD_KEY_REPORT" />
+           </intent-filter>
+       </receiver>
+
     </application>
 </manifest>

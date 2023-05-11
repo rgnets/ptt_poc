@@ -52,6 +52,7 @@ dependencies:
   flutter_sound: ^9.2.13
   loggy: ^2.0.3
   flutter_loggy: ^2.0.2
+  receive_intent: ^0.2.3
 
 dev_dependencies:
   flutter_test:

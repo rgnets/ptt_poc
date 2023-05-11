@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dumble/dumble.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:loggy/loggy.dart';
 import 'package:pttoc_test/providers/connection_options.dart';
@@ -10,6 +12,8 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
   MumbleClient? client;
 
   MumbleLog mumbleLog = MumbleLog();
+  final pttChannel = MethodChannel('com.rgnets.pttoc/ptt');
+  bool transmitting = false;
 
   Future<void> connect(
       {required String host,
@@ -52,6 +56,20 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
 
       client!.add(clientCallback);
       // print('Client synced with server!');
+
+      pttChannel.setMethodCallHandler((MethodCall call) async {
+        loggy.debug(call);
+        if (call.method == 'pttEvent') {
+          // Handle the event here
+          if (call.arguments == 'ptt_pressed' && connected && !transmitting) {
+            startTransmit();
+          }
+          if (call.arguments == 'ptt_released') {
+            stopTransmit();
+          }
+        }
+      });
+
       notifyListeners();
     });
     // .onError((error, stackTrace) {
@@ -85,6 +103,41 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
     } else {
       return client!.closed == false;
     }
+  }
+
+  void startTransmit() async {
+    mumbleLog.internal("Starting transmit");
+    transmitting = true;
+    notifyListeners();
+    // // await new Future.delayed(
+    // //     const Duration(seconds: 5)); // Wait a few seconds before we start talking
+    // StreamOpusEncoder<int> encoder = StreamOpusEncoder.bytes(
+    //     frameTime: frameTime,
+    //     floatInput: false,
+    //     sampleRate: inputSampleRate,
+    //     channels: channels,
+    //     application: Application.voip);
+    // AudioFrameSink audioOutput = client.audio.sendAudio(codec: AudioCodec.opus);
+    //
+    // await simulateAudioRecording() // This simulates recording by reading from a file
+    //     .asyncMap((List<int> bytes) async {
+    //       // We need to wait a bit since reading from a file is "faster than realtime".
+    //       // Usually we would wait frameTimeMs, but since encoding with opus takes about abit
+    //       // (we assume 17ms here), we wait less.
+    //       // In an actual live recording, you dont need this artificial waiting.
+    //       await new Future.delayed(
+    //           const Duration(milliseconds: frameTimeMs - 17));
+    //       return bytes;
+    //     })
+    //     .transform(encoder)
+    //     .map((Uint8List audioBytes) => AudioFrame.outgoing(frame: audioBytes))
+    //     .pipe(audioOutput);
+  }
+
+  void stopTransmit() {
+    mumbleLog.internal("Stopping transmit");
+    transmitting = false;
+    notifyListeners();
   }
 
   // Client callback functions
