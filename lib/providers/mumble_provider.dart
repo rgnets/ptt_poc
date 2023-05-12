@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:dumble/dumble.dart' hide Permission;
 import 'package:flutter/services.dart';
@@ -12,6 +14,9 @@ import 'package:pttoc_test/providers/connection_options.dart';
 import 'package:pttoc_test/providers/lib/mumble_log.dart';
 
 import 'flutter_sound_provider.dart';
+
+const int channels = 1;
+const int sampleRate = 48000;
 
 class MumbleProvider extends ChangeNotifier with NetworkLoggy {
   MumbleClient? client;
@@ -66,7 +71,11 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
           onUserAdded: onUserAdded,
           onUserListReceived: onUserListReceived);
 
+      MumbleAudioListener audioListener = MumbleAudioListener(
+          mumbleClient: client!, onAudioReceived: onAudioReceived);
+
       client!.add(clientCallback);
+      client!.audio.add(audioListener);
       // print('Client synced with server!');
 
       pttChannel.setMethodCallHandler((MethodCall call) async {
@@ -109,6 +118,14 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
 //     //print('Bye!');
   }
 
+  @override
+  void dispose() {
+    flutterSound.mPlayer!.stopPlayer();
+    flutterSound.dispose();
+    audioStream.cancel();
+    super.dispose();
+  }
+
   bool get connected {
     if (client == null) {
       return false;
@@ -124,21 +141,11 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
     if (await Permission.microphone.request().isGranted && client != null) {
       // Permission is granted, continue with audio recording and transmission
 
-      // audioStream = await MicrophoneStream().audioStream;
-      // client!.audio.sendAudio(codec: codec) .microphoneStream(audioStream)
-
-      // Stream<Uint8List>? micStream = await MicStream.microphone(
-      //   sampleRate: 48000,
-      //   channelConfig: ChannelConfig.CHANNEL_IN_MONO,
-      //   audioFormat: AudioFormat.ENCODING_PCM_8BIT,
-      // );
-      //
-
       HapticFeedback.vibrate();
-      const int inputSampleRate = 16000;
-      const int frameTimeMs = 40; // use frames of 40ms
+      // const int inputSampleRate = 24000;
+      const int inputSampleRate = sampleRate;
       const FrameTime frameTime = FrameTime.ms40;
-      const int outputSampleRate = 48000;
+      const int outputSampleRate = inputSampleRate;
       const int channels = 1;
 
       StreamOpusEncoder<int> encoder = StreamOpusEncoder.bytes(
@@ -150,25 +157,10 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
 
       AudioFrameSink audioOutput =
           client!.audio.sendAudio(codec: AudioCodec.opus);
-      //
-      // micStream!
-      //     .asyncMap((List<int> bytes) async {
-      //       return bytes;
-      //     })
-      //     .transform(encoder)
-      //     .map((Uint8List audioBytes) => AudioFrame.outgoing(frame: audioBytes))
-      //     .pipe(audioOutput);
 
       var recordingDataController = StreamController<Food>();
       Stream<Uint8List>? audioStream = recordingDataController.stream
           .map((event) => (event as FoodData).data!);
-      // var _mRecordingDataSubscription =
-      //     recordingDataController.stream.listen((buffer) {
-      //   if (buffer is FoodData) {
-      //     // sink.add(buffer.data!);
-      //     print(buffer.data!);
-      //   }
-      // });
 
       audioStream
           .asyncMap((List<int> bytes) async {
@@ -182,7 +174,7 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
         toStream: recordingDataController.sink,
         codec: Codec.pcm16,
         numChannels: channels,
-        sampleRate: inputSampleRate,
+        sampleRate: outputSampleRate,
       );
 
       notifyListeners();
@@ -191,29 +183,76 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
       transmitting = false;
       notifyListeners();
     }
-    // // await new Future.delayed(
-    // //     const Duration(seconds: 5)); // Wait a few seconds before we start talking
-    // StreamOpusEncoder<int> encoder = StreamOpusEncoder.bytes(
-    //     frameTime: frameTime,
-    //     floatInput: false,
-    //     sampleRate: inputSampleRate,
-    //     channels: channels,
-    //     application: Application.voip);
-    // AudioFrameSink audioOutput = client.audio.sendAudio(codec: AudioCodec.opus);
-    //
-    // await simulateAudioRecording() // This simulates recording by reading from a file
-    //     .asyncMap((List<int> bytes) async {
-    //       // We need to wait a bit since reading from a file is "faster than realtime".
-    //       // Usually we would wait frameTimeMs, but since encoding with opus takes about abit
-    //       // (we assume 17ms here), we wait less.
-    //       // In an actual live recording, you dont need this artificial waiting.
-    //       await new Future.delayed(
-    //           const Duration(milliseconds: frameTimeMs - 17));
-    //       return bytes;
-    //     })
-    //     .transform(encoder)
-    //     .map((Uint8List audioBytes) => AudioFrame.outgoing(frame: audioBytes))
-    //     .pipe(audioOutput);
+  }
+
+  Uint8List generate440HzTone() {
+    final sampleRate = 48000;
+    final duration = 1; // seconds
+    final frequency = 440; // Hz
+
+    final numSamples = (sampleRate * duration).toInt();
+    final samples = List<int>.filled(numSamples, 0);
+
+    for (var i = 0; i < numSamples; ++i) {
+      final sampleValue = 32767.0 * sin(2 * pi * frequency * i / sampleRate);
+      samples[i] = sampleValue.toInt();
+    }
+
+    final byteData = ByteData(numSamples * 2); // 2 bytes per sample
+    for (var i = 0; i < numSamples; ++i) {
+      byteData.setInt16(i * 2, samples[i], Endian.little);
+    }
+
+    return byteData.buffer.asUint8List();
+  }
+
+  Future<void> feedHim(FlutterSoundPlayer player, Uint8List buffer) async {
+    const blockSize = 4096;
+    int lnData = 0;
+    var totalLength = buffer.length;
+    while (totalLength > 0 && !player.isStopped) {
+      int bsize = totalLength > blockSize ? blockSize : totalLength;
+      await player
+          .feedFromStream(buffer.sublist(lnData, lnData + bsize)); // await !!!!
+      lnData += bsize;
+      totalLength -= bsize;
+    }
+  }
+
+  Future<void> onAudioReceived(Stream<AudioFrame> voiceData, AudioCodec codec,
+      User? speaker, TalkMode talkMode) async {
+    String target = talkMode == TalkMode.normal
+        ? 'talking to ${speaker?.channel.channelId}'
+        : ' whispering';
+    mumbleLog.internal('${speaker?.name} started $target.');
+
+    if (codec == AudioCodec.opus && flutterSound.mPlayer != null) {
+      StreamOpusDecoder opusDecoder = StreamOpusDecoder.bytes(
+          floatOutput: false, sampleRate: sampleRate, channels: channels);
+
+      FlutterSoundPlayer player = FlutterSoundPlayer();
+      await player.openPlayer(enableVoiceProcessing: true);
+
+      await player.startPlayerFromStream(
+          codec: Codec.pcm16, numChannels: channels, sampleRate: sampleRate);
+      player.setVolume(1);
+      voiceData
+          .map<Uint8List>((AudioFrame frame) =>
+              frame.frame) //we are only interested in the bytes
+          .cast<Uint8List?>()
+          .where((event) => event != null && event.isNotEmpty)
+          .transform(opusDecoder)
+          .cast<Uint8List>()
+          .listen((event) {
+        player.foodSink!.add(FoodData(event));
+      }).onDone(() {
+        mumbleLog.internal('${speaker?.name} stopped $target.');
+        player.stopPlayer();
+        player.closePlayer();
+      });
+    } else {
+      mumbleLog.error("We don't know how to decode $codec");
+    }
   }
 
   void stopTransmit() {
@@ -319,6 +358,23 @@ class MumbleProvider extends ChangeNotifier with NetworkLoggy {
   }
 }
 
+class MumbleAudioListener with AudioListener {
+  final MumbleClient mumbleClient;
+  final void Function(Stream<AudioFrame> voiceData, AudioCodec codec,
+      User? speaker, TalkMode talkMode) _onAudioReceived;
+  MumbleAudioListener(
+      {required this.mumbleClient,
+      required void Function(Stream<AudioFrame> voiceData, AudioCodec codec,
+              User? speaker, TalkMode talkMode)
+          onAudioReceived})
+      : _onAudioReceived = onAudioReceived;
+
+  @override
+  void onAudioReceived(Stream<AudioFrame> voiceData, AudioCodec codec,
+          User? speaker, TalkMode talkMode) =>
+      _onAudioReceived(voiceData, codec, speaker, talkMode);
+}
+
 class MumbleClientCallback with MumbleClientListener {
   final MumbleClient mumbleClient;
   final void Function(List<BanEntry> bans) _onBanListReceived;
@@ -395,99 +451,3 @@ class MumbleClientCallback with MumbleClientListener {
   void onUserListReceived(List<RegisteredUser> users) =>
       _onUserListReceived(users);
 }
-//
-// class MumbleExampleCallback with MumbleClientListener, UserListener {
-//   final MumbleClient client;
-//
-//   const MumbleExampleCallback(this.client);
-//
-//   @override
-//   void onBanListReceived(List<BanEntry> bans) {}
-//
-//   @override
-//   void onChannelAdded(Channel channel) {
-//     if (channel.name == 'Dumble Test Channel') {
-//       // This is our channel
-//       // join it
-//       client.self.moveToChannel(channel: channel);
-//     }
-//   }
-//
-//   @override
-//   void onCryptStateChanged() {}
-//
-//   @override
-//   void onDone() {
-//     print('onDone');
-//   }
-//
-//   @override
-//   void onDropAllChannelPermissions() {}
-//
-//   @override
-//   void onError(error, [StackTrace? stackTrace]) {
-//     print('An error occured!');
-//     print(error);
-//     if (stackTrace != null) {
-//       print(stackTrace);
-//     }
-//   }
-//
-//   @override
-//   void onQueryUsersResult(Map<int, String> idToName) {}
-//
-//   @override
-//   void onTextMessage(IncomingTextMessage message) {
-//     print('[${new DateTime.now()}] ${message.actor?.name}: ${message.message}');
-//   }
-//
-//   @override
-//   void onUserAdded(User user) {
-//     //Keep an eye on the user
-//     user.add(this);
-//   }
-//
-//   @override
-//   void onUserListReceived(List<RegisteredUser> users) {}
-//
-//   @override
-//   void onUserChanged(User? user, User? actor, UserChanges changes) {
-//     print('User $user changed $changes');
-//     // The user changed
-//     if (changes.channel) {
-//       // ...his channel
-//       if (user?.channel == client.self.channel) {
-//         // ... to our channel
-//         // So greet him
-//         client.self.channel
-//             .sendMessageToChannel(message: 'Hello ${user?.name}!');
-//       }
-//     }
-//   }
-//
-//   @override
-//   void onUserRemoved(User user, User? actor, String? reason, bool? ban) {
-//     // If the removed user is the actor that is responsible for this, the
-//     // user simply left the server. Same is ture if the actor is null.
-//     if (actor == null || user == actor) {
-//       print('${user.name} left the server');
-//     } else if (ban ?? false) {
-//       // The user was baned from the server
-//       print('${user.name} was banned by ${actor.name}, reason $reason.');
-//     } else {
-//       // The user was kicked from the server
-//       print('${user.name} was kicked by ${actor.name}, reason $reason.');
-//     }
-//   }
-//
-//   @override
-//   void onUserStats(User user, UserStats stats) {}
-//
-//   @override
-//   void onPermissionDenied(PermissionDeniedException e) {
-//     print('Permission denied!');
-//     print(
-//         'This will occur if this example is run a second time, since it will try to create a channel that already exists!');
-//     print('The concrete exception was: $e');
-//   }
-// }

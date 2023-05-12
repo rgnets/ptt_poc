@@ -30,18 +30,18 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-  rg_widgets:
-    #git: #    RG_WIDGETS_GIT
-    #url: git@github.com:rgnets/rg_widgets.git #    RG_WIDGETS_GIT
-    ## ref: e4063f2    #    RG_WIDGETS_GIT
-    path: ../../Repos/flutter/rxg_flutter_common/rg_widgets   #    RG_WIDGETS_PATH
-
-  rg_common:
-    #git:    # RG_COMMON_GIT
-    #url: git@github.com:rgnets/rg_common.git    # RG_COMMON_GIT
-    ## ref: f727693    # RG_COMMON_GIT
-    path: ../../Repos/flutter/rxg_flutter_common/rg_common    # RG_COMMON_PATH
+#
+#  rg_widgets:
+#    #git: #    RG_WIDGETS_GIT
+#    #url: git@github.com:rgnets/rg_widgets.git #    RG_WIDGETS_GIT
+#    ## ref: e4063f2    #    RG_WIDGETS_GIT
+#    path: ../../Repos/flutter/rxg_flutter_common/rg_widgets   #    RG_WIDGETS_PATH
+#
+#  rg_common:
+#    #git:    # RG_COMMON_GIT
+#    #url: git@github.com:rgnets/rg_common.git    # RG_COMMON_GIT
+#    ## ref: f727693    # RG_COMMON_GIT
+#    path: ../../Repos/flutter/rxg_flutter_common/rg_common    # RG_COMMON_PATH
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -54,12 +54,11 @@ dependencies:
   flutter_loggy: ^2.0.2
   receive_intent: ^0.2.3
   permission_handler: ^10.2.0
-  mic_stream: ^0.6.5
   opus_dart: ^3.0.0
   audio_session: ^0.1.13
 
-dependency_overrides:
-  ffi: "^2.0.1" # Playing with fire here, but need to do so to resolve a conflict.
+#dependency_overrides:
+#  ffi: "^2.0.1" # Playing with fire here, but need to do so to resolve a conflict.
 
 dev_dependencies:
   flutter_test:

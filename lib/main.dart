@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_loggy/flutter_loggy.dart';
+// import 'package:logger/logger.dart' as LOGGER;
 import 'package:loggy/loggy.dart';
 import 'package:opus_dart/opus_dart.dart';
 import 'package:opus_flutter/opus_flutter.dart' as opus_flutter;
@@ -9,6 +10,21 @@ import '/providers/mumble_provider.dart';
 import '/views/mumble_ui/mumble_ui.dart';
 
 void main() async {
+  // var logger = LOGGER.Logger(
+  //   printer: LOGGER.PrettyPrinter(
+  //       methodCount: 2, // number of method calls to be displayed
+  //       errorMethodCount: 8, // number of method calls if stacktrace is provided
+  //       lineLength: 120, // width of the output
+  //       colors: true, // Colorful log messages
+  //       printEmojis: true, // Print an emoji for each log message
+  //       printTime: false // Should each log print contain a timestamp
+  //       ),
+  // );
+  // Logger.addOutputListener((record) {
+  //   print(
+  //       '${record.time}: [${record.level.name}] ${record.loggerName}: ${record.message}');
+  // });
+
   Loggy.initLoggy(
       filters: [
         // BlacklistFilter([NetworkLoggy])

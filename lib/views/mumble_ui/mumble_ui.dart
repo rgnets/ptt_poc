@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:loggy/loggy.dart';
 import 'package:provider/provider.dart';
 import 'package:pttoc_test/views/mumble_ui/mumble_ui_view_model.dart';
-import 'package:rg_widgets/gui_utils.dart';
 
+import '../../gui_utils.dart';
 import '../../providers/mumble_provider.dart';
 
 class MumbleUiView extends StatelessWidget with UiLoggy {

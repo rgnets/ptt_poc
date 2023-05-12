@@ -3,7 +3,9 @@
    <application
         android:label="pttoc_test"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+       android:usesCleartextTraffic="true"
+       >
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -41,4 +43,7 @@
        </receiver>
 
     </application>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>
