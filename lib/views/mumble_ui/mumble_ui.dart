@@ -26,7 +26,7 @@ class MumbleUiView extends StatelessWidget with UiLoggy {
               appBar: AppBar(
                 // Here we take the value from the MyHomePage object that was created by
                 // the App.build method, and use it to set our appbar title.
-                title: Text("Mumble Test"),
+                title: Text("RG Nets PTToC Demo"),
               ),
               body: SingleChildScrollView(
                 child: Column(
