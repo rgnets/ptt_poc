@@ -21,7 +21,7 @@ class MumbleUiViewModel extends ChangeNotifier with UiLoggy {
   TextEditingController portTextController =
       TextEditingController(text: "64738");
   TextEditingController nameTextController =
-      TextEditingController(text: "Dumble Test (${const Uuid().v1()})");
+      TextEditingController(text: "PTToC Test (${const Uuid().v1()})");
   TextEditingController passwordTextController = TextEditingController();
   // Controller
 
