@@ -56,6 +56,7 @@ dependencies:
   permission_handler: ^10.2.0
   opus_dart: ^3.0.0
   audio_session: ^0.1.13
+  uuid: ^3.0.7
 
 #dependency_overrides:
 #  ffi: "^2.0.1" # Playing with fire here, but need to do so to resolve a conflict.

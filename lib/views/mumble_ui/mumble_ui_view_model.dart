@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide Intent;
 import 'package:loggy/loggy.dart';
 import 'package:pttoc_test/providers/mumble_provider.dart';
+import 'package:uuid/uuid.dart';
 
 // https://stackoverflow.com/questions/33281286/samsung-galaxy-xcover-active-button
 
@@ -16,12 +17,11 @@ class MumbleUiViewModel extends ChangeNotifier with UiLoggy {
 
   FocusNode transmitButtonFocus = FocusNode();
 
-  TextEditingController hostTextController =
-      TextEditingController(text: "dr130.ketchel.xyz");
+  TextEditingController hostTextController = TextEditingController(text: "");
   TextEditingController portTextController =
       TextEditingController(text: "64738");
   TextEditingController nameTextController =
-      TextEditingController(text: "Dumble Test");
+      TextEditingController(text: "Dumble Test (${const Uuid().v1()})");
   TextEditingController passwordTextController = TextEditingController();
   // Controller
 
